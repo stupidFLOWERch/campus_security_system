@@ -12,7 +12,10 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-if (!isset($_SESSION["active_tab"])) {
+// Ensure the active tab is properly set
+if (isset($_GET['active_tab'])) {
+    $_SESSION["active_tab"] = $_GET['active_tab'];
+} elseif (!isset($_SESSION["active_tab"])) {
     $_SESSION["active_tab"] = "registerVehicle"; // Default tab
 }
 
@@ -61,6 +64,42 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["add_vehicle"])) {
     $stmt->close();
 }
 
+// Handle security addition
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["add_security"])) {
+    $username = trim($_POST["Username"]);
+    $name = strtoupper(trim($_POST["name"]));
+    $role = strtoupper(trim($_POST["role"]));
+    $password = trim($_POST["password"]);
+
+    // Check for duplicates (Username or Name already exists)
+    $stmt = $conn->prepare("SELECT * FROM security_personnel WHERE username = ? OR name = ?");
+    $stmt->bind_param("ss", $username, $name);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows > 0) {
+        $duplicate_fields = [];
+        while ($row = $result->fetch_assoc()) {
+            if (strcasecmp($row['username'], $username) === 0) $duplicate_fields[] = "Username";
+            if (strcasecmp($row['name'], $name) === 0) $duplicate_fields[] = "Name";
+        }
+        $error_message = "❌ Duplicate entry found: " . implode(", ", $duplicate_fields) . ". Please use a unique Username and Name.";
+        $_SESSION["active_tab"] = "registerSecurity";
+    } else {
+        // Insert new security personnel data
+        $stmt = $conn->prepare("INSERT INTO security_personnel (username, name, role, password) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("ssss", $username, $name, $role, $password);
+
+        if ($stmt->execute()) {
+            $success_message = "✅ Security personnel registered successfully!";
+            unset($_POST); // Clear the form fields after successful submission
+        } else {
+            $error_message = "❌ Database error: Failed to register security personnel. Please try again.";
+        }
+    }
+    $stmt->close();
+}
+
 // Fetch registered vehicles
 $vehicles = $conn->query("SELECT * FROM vehicle_registered_details");
 
@@ -80,6 +119,16 @@ $conn->close();
 </head>
 <body>
 <div class="container mt-4">
+    <!-- Back Button -->
+    <a href="admin_main.php">
+        <img src="back-icon.png" alt="Back" style="width: 45px; height: 35px;">
+    </a>
+    <style>
+        a:hover img {
+            transform: scale(1.2);
+            transition: transform 0.2s ease-in-out;
+        }
+    </style>
     <h2 class="text-center mb-4">Admin Dashboard</h2>
 
     <!-- Navigation Tabs -->
@@ -89,6 +138,9 @@ $conn->close();
         </li>
         <li class="nav-item">
             <a class="nav-link <?= ($activeTab == "modifyVehicle") ? "active" : "" ?>" data-bs-toggle="tab" href="#modifyVehicle">Modify Registered Vehicle</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= ($activeTab == "registerSecurity") ? "active" : "" ?>" data-bs-toggle="tab" href="#registerSecurity">Register New Security</a>
         </li>
         <li class="nav-item">
             <a class="nav-link <?= ($activeTab == "modifySecurity") ? "active" : "" ?>" data-bs-toggle="tab" href="#modifySecurity">Modify Security Personnel</a>
@@ -104,7 +156,6 @@ $conn->close();
                     <?php if (isset($success_message)) echo "<div class='alert alert-success'>$success_message</div>"; ?>
 
                     <form method="POST">
-                        <input type="hidden" name="active_tab" id="active_tab" value="<?= $_SESSION["active_tab"] ?>">
                         <!-- Personal Details Section -->
                         <div class="mb-4">
                             <div class="card">
@@ -141,7 +192,7 @@ $conn->close();
                                     </div>
                                     <div class="mb-3">
                                         <label class="fw-bold">Car Brand & Model</label>
-                                        <input type="text" name="car_brand_model" class="form-control" value="<?= isset($_POST['car_brand_model']) ? $_POST['car_brand_model'] : '' ?>">
+                                        <input type="text" name="car_brand_model" class="form-control" value="<?= isset($_POST['car_brand_model']) ? $_POST['car_brand_model'] : '' ?>" required>
                                     </div>
                                     <div class="mb-3">
                                         <label class="fw-bold">Car Colour</label>
@@ -184,8 +235,10 @@ $conn->close();
                         <td><?= $row['phone_number'] ?></td>
                         <td><?= $row['owner_email'] ?></td>
                         <td>
-                            <a href="edit_vehicle.php?id=<?= $row['id'] ?>" class="btn btn-warning">Edit</a>
-                            <a href="delete_vehicle.php?id=<?= $row['id'] ?>"
+                            <a href="edit_vehicle.php?id=<?= $row['id'] ?>&active_tab=modifyVehicle" 
+                                class="btn btn-warning">Edit</a>
+                            
+                            <a href="delete_vehicle.php?id=<?= $row['id'] ?>&active_tab=modifyVehicle"
                                 class="btn btn-danger"
                                 onclick="return confirm('⚠️ Are you sure you want to delete this record? This action cannot be undone!');">
                                 Delete
@@ -194,6 +247,68 @@ $conn->close();
                     </tr>
                 <?php endwhile; ?>
             </table>
+        </div>
+        
+        <!-- Register New Security -->
+        <div id="registerSecurity" class="tab-pane fade show active">
+            <div class="card">
+                <div class="card-body">
+                    <?php if (isset($error_message)) echo "<div class='alert alert-danger'>$error_message</div>"; ?>
+                    <?php if (isset($success_message)) echo "<div class='alert alert-success'>$success_message</div>"; ?>
+
+                    <form method="POST" onsubmit="return validatePassword()">
+                        <!-- Personal Details Section -->
+                        <div class="mb-4">
+                            <div class="card">
+                                <div class="card-header bg-primary text-white">Personal Details</div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="fw-bold">Username</label>
+                                        <input type="text" name="Username" class="form-control" value="<?= isset($_POST['Username']) ? $_POST['Username'] : '' ?>" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="fw-bold">Name</label>
+                                        <input type="text" name="name" class="form-control" value="<?= isset($_POST['name']) ? $_POST['name'] : '' ?>" required pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="fw-bold">Role</label>
+                                        <select name="role" class="form-control" required>
+                                            <?php
+                                            // Define the available roles manually
+                                            $role_options = ["ADMIN", "SECURITY", "STAFF"];
+
+                                            foreach ($role_options as $role_name) {
+                                                echo "<option value='$role_name'>$role_name</option>";
+                                            }
+                                            ?>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3 position-relative">
+                                        <label class="fw-bold">Password</label>
+                                        <div class="input-group">
+                                            <input type="password" id="password" name="password" class="form-control" value="<?= isset($_POST['password']) ? $_POST['password'] : '' ?>" required>
+                                            <button type="button" class="btn btn-outline-secondary" onclick="togglePasswordVisibility('password', 'togglePasswordIcon')">
+                                                <i id="togglePasswordIcon" class="bi bi-eye"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3 position-relative">
+                                        <label class="fw-bold">Re-enter Password</label>
+                                        <div class="input-group">
+                                            <input type="password" id="confirm_password" name="confirm_password" class="form-control" required>
+                                            <button type="button" class="btn btn-outline-secondary" onclick="togglePasswordVisibility('confirm_password', 'toggleConfirmPasswordIcon')">
+                                                <i id="toggleConfirmPasswordIcon" class="bi bi-eye"></i>
+                                            </button>
+                                        </div>
+                                        <small id="password_error" class="text-danger"></small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" name="add_security" class="btn btn-success">Register Security</button>
+                    </form>
+                </div>
+            </div>
         </div>
 
         <!-- Modify Security Personnel -->
@@ -220,24 +335,75 @@ $conn->close();
                 <?php endwhile; ?>
             </table>
         </div>
-
     </div>
 </div>
+
 <script>
-    function setActiveTab(tabName) {
-        document.getElementById('active_tab').value = tabName;
-        sessionStorage.setItem("activeTab", tabName);
+    document.addEventListener("DOMContentLoaded", function () {
+    // Get active tab from URL or localStorage
+    let activeTab = new URLSearchParams(window.location.search).get("active_tab") || localStorage.getItem("activeTab");
+
+    // Default to 'registerVehicle' if no tab is found
+    if (!activeTab) {
+        activeTab = "registerVehicle";
+        localStorage.setItem("activeTab", activeTab); // Store default tab in localStorage
     }
 
-    document.addEventListener("DOMContentLoaded", function() {
-        let activeTab = sessionStorage.getItem("activeTab") || "registerVehicle"; // Default tab
-        let tabElement = document.querySelector(`a[href='#${activeTab}']`);
-        if (tabElement) {
-            new bootstrap.Tab(tabElement).show();
-        }
-    });
-</script>
+    // Show the correct tab
+    let tabElement = document.querySelector(`a[href="#${activeTab}"]`);
+    if (tabElement) {
+        new bootstrap.Tab(tabElement).show(); // Activate the correct tab
+    }
 
+    // Ensure the correct tab content is displayed
+    document.querySelectorAll('.tab-pane').forEach(tabContent => {
+        tabContent.classList.remove('show', 'active'); // Hide all tab content
+    });
+
+    let activeTabContent = document.getElementById(activeTab);
+    if (activeTabContent) {
+        activeTabContent.classList.add('show', 'active'); // Show correct tab content
+    }
+
+    // Store the active tab when switching tabs
+    document.querySelectorAll('a[data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener("shown.bs.tab", function (event) {
+            let selectedTab = event.target.getAttribute("href").substring(1);
+            localStorage.setItem("activeTab", selectedTab);
+        });
+    });
+});
+
+    function validatePassword() {
+        let password = document.querySelector('input[name="password"]').value;
+        let confirmPassword = document.querySelector('input[name="confirm_password"]').value;
+        let errorElement = document.getElementById("password_error");
+
+        if (password !== confirmPassword) {
+            errorElement.textContent = "❌ Passwords do not match!";
+            return false; // Prevent form submission
+        } else {
+            errorElement.textContent = ""; // Clear error if passwords match
+            return true;
+        }
+    }
+
+    function togglePasswordVisibility(fieldId, iconId) {
+        let passwordField = document.getElementById(fieldId);
+        let icon = document.getElementById(iconId);
+
+        if (passwordField.type === "password") {
+            passwordField.type = "text";
+            icon.classList.remove("bi-eye");
+            icon.classList.add("bi-eye-slash");
+        } else {
+            passwordField.type = "password";
+            icon.classList.remove("bi-eye-slash");
+            icon.classList.add("bi-eye");
+        }
+    }
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

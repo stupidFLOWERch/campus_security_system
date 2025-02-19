@@ -61,15 +61,20 @@ $conn->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+    
     <style>
         h2 {
-            margin-top: 20px; /* Adjusts the space above the heading */
+            margin-top: 20px;
             font-style: italic;
-            font-size: 40px; /* Makes the text italic */
+            font-size: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px; /* Adds space between the icon and text */
+            gap: 10px;
         }
         h2 img {
             width: 50px;
@@ -91,10 +96,9 @@ $conn->close();
             margin: auto;
             margin-top: 30px;
         }
-        input[type="text"], input[type="password"]{
-            width: 60%;
+        input[type="text"], input[type="password"] {
+            width: 100%;
             padding: 10px;
-            margin: 5px 0;
             border-radius: 5px;
             border: 1px solid #ccc;
             font-size: 15px;
@@ -109,14 +113,14 @@ $conn->close();
             color: white;
             font-size: 20px;
             cursor: pointer;
-            
         }
         button:hover {
             background: #0056b3;
         }
         .error {
             color: red;
-            font-size: 25px;
+            font-size: 18px;
+            margin-top: 10px;
         }
         .input-container {
             position: relative;
@@ -125,45 +129,72 @@ $conn->close();
             display: flex;
             align-items: center;
         }
-
         .input-container img {
             position: absolute;
-            left: 10px; /* Adjust icon position */
-            width: 25px; /* Adjust icon size */
+            left: 10px;
+            width: 25px;
             height: 25px;
         }
-
         .input-container input {
             width: 100%;
-            padding: 12px 40px; /* Prevent overlap with icon */
+            padding: 12px 40px;
             border-radius: 5px;
             border: 1px solid #ccc;
             font-size: 15px;
         }
-
-
+        .eye-icon {
+            position: absolute;
+            right: 15px;
+            cursor: pointer;
+            font-size: 20px;
+            color: #666;
+        }
+        .eye-icon:hover {
+            color: black;
+        }
     </style>
 </head>
 <body>
+
 <div class="login-container">
     <h2>
-        <img src="login-icon.png" alt="Login Icon" width="30" height="30" style="vertical-align: middle; margin-right: 10px;">
+        <img src="login-icon.png" alt="Login Icon">
         Login
     </h2>
+
     <form action="login.php" method="post">
+        <!-- Username -->
         <div class="input-container">
             <img src="user.png" alt="User Icon">
             <input type="text" name="username" placeholder="Username" required>
         </div>
+
+        <!-- Password with Eye Icon -->
         <div class="input-container">
             <img src="lock.png" alt="Lock Icon">
-            <input type="password" name="password" placeholder="Password" required>
+            <input type="password" id="password" name="password" placeholder="Password" required>
+            <i class="bi bi-eye eye-icon" id="togglePassword"></i>
         </div>
+
         <button type="submit">LOGIN</button>
     </form>
 
-
     <?php if (isset($error)) echo "<p class='error'>$error</p>"; ?>
 </div>
+
+<script>
+    // Toggle Password Visibility
+    document.getElementById("togglePassword").addEventListener("click", function() {
+        let passwordInput = document.getElementById("password");
+        if (passwordInput.type === "password") {
+            passwordInput.type = "text";
+            this.classList.replace("bi-eye", "bi-eye-slash");
+        } else {
+            passwordInput.type = "password";
+            this.classList.replace("bi-eye-slash", "bi-eye");
+        }
+    });
+</script>
+
 </body>
 </html>

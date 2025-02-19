@@ -26,8 +26,8 @@ if (isset($_GET['id'])) {
     $row = $result->fetch_assoc();
 }
 
-// Fetch the roles dynamically (you can customize this query if you store roles in another table)
-$roles_query = "SELECT DISTINCT role FROM security_personnel"; // or from another roles table if you have one
+// Fetch the roles dynamically
+$roles_query = "SELECT DISTINCT role FROM security_personnel"; 
 $roles_result = $conn->query($roles_query);
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -35,21 +35,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = $_POST['username'];
     $name = $_POST['name'];
     $role = $_POST['role'];
-    $password = $_POST['password']; // Include the password field
+    $password = $_POST['password'];
+    $reenter_password = $_POST['reenter_password'];
 
-    // Update query
-    $update_stmt = $conn->prepare("UPDATE security_personnel SET username = ?, name = ?, role = ?, password = ? WHERE id = ?");
-    $update_stmt->bind_param("ssssi", $username, $name, $role, $password, $id);
-
-    if ($update_stmt->execute()) {
-        // Set success message if the record is updated
-        $message = "✅ Record updated successfully!";
+    if ($password !== $reenter_password) {
+        $message = "❌ Passwords do not match!";
     } else {
-        // Set error message if the update fails
-        $message = "❌ Error updating record. Please try again.";
-    }
+        // Update query
+        $update_stmt = $conn->prepare("UPDATE security_personnel SET username = ?, name = ?, role = ?, password = ? WHERE id = ?");
+        $update_stmt->bind_param("ssssi", $username, $name, $role, $password, $id);
 
-    $update_stmt->close();
+        if ($update_stmt->execute()) {
+            $message = "✅ Record updated successfully!";
+        } else {
+            $message = "❌ Error updating record. Please try again.";
+        }
+        $update_stmt->close();
+    }
 }
 
 $conn->close();
@@ -63,6 +65,34 @@ $conn->close();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Security Personnel</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script>
+        function validateForm() {
+            let password = document.getElementById("password").value;
+            let reenterPassword = document.getElementById("reenter_password").value;
+
+            if (password !== reenterPassword) {
+                alert("❌ Passwords do not match!");
+                return false;
+            }
+            return true;
+        }
+
+        function togglePasswordVisibility(id, iconId) {
+            let passwordField = document.getElementById(id);
+            let icon = document.getElementById(iconId);
+
+            if (passwordField.type === "password") {
+                passwordField.type = "text";
+                icon.classList.remove("bi-eye");
+                icon.classList.add("bi-eye-slash");
+            } else {
+                passwordField.type = "password";
+                icon.classList.remove("bi-eye-slash");
+                icon.classList.add("bi-eye");
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
 </head>
 <body>
 <div class="container mt-4">
@@ -74,12 +104,13 @@ $conn->close();
             <?php if ($message): ?>
                 <script>
                     alert("<?= $message ?>");
-                    window.location.href = 'operation.php'; // Redirect back to operation page after showing the alert
+                    <?php if ($message === "✅ Record updated successfully!") : ?>
+                        window.location.href = 'operation.php'; // Redirect only if successful
+                    <?php endif; ?>
                 </script>
             <?php endif; ?>
 
-            <form method="POST">
-                <!-- Personal Details Section -->
+            <form method="POST" onsubmit="return validateForm()">
                 <div class="mb-4">
                     <div class="card">
                         <div class="card-header bg-primary text-white">Security Personnel Details</div>
@@ -90,26 +121,37 @@ $conn->close();
                             </div>
                             <div class="mb-3">
                                 <label class="fw-bold">Name</label>
-                                <input type="text" name="name" class="form-control" value="<?= $row['name'] ?>" required>
+                                <input type="text" name="name" class="form-control" value="<?= $row['name'] ?>" required pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
                             </div>
                             <div class="mb-3">
                                 <label class="fw-bold">Role</label>
                                 <select name="role" class="form-control" required>
-                                <?php
-                                    // Define the available roles manually
+                                    <?php
                                     $role_options = ["ADMIN", "SECURITY", "STAFF"];
-
                                     foreach ($role_options as $role_name) {
                                         $selected = ($role_name === $row['role']) ? 'selected' : '';
                                         echo "<option value='$role_name' $selected>$role_name</option>";
                                     }
                                     ?>
-
                                 </select>
                             </div>
-                            <div class="mb-3">
+                            <div class="mb-3 position-relative">
                                 <label class="fw-bold">Password</label>
-                                <input type="text" name="password" class="form-control" value="<?= $row['password'] ?>" required>
+                                <div class="input-group">
+                                    <input type="password" id="password" name="password" class="form-control" value="<?= $row['password'] ?>" required>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="togglePasswordVisibility('password', 'togglePasswordIcon')">
+                                        <i id="togglePasswordIcon" class="bi bi-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mb-3 position-relative">
+                                <label class="fw-bold">Re-enter Password</label>
+                                <div class="input-group">
+                                    <input type="password" id="reenter_password" name="reenter_password" class="form-control" required>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="togglePasswordVisibility('reenter_password', 'toggleReenterPasswordIcon')">
+                                        <i id="toggleReenterPasswordIcon" class="bi bi-eye"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -87,7 +87,7 @@ $conn->close();
                         <div class="card-body">
                             <div class="mb-3">
                                 <label class="fw-bold">Owner Name</label>
-                                <input type="text" name="owner_name" class="form-control" value="<?= $row['owner_name'] ?>" required>
+                                <input type="text" name="owner_name" class="form-control" value="<?= $row['owner_name'] ?>" required pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
                             </div>
                             <div class="mb-3">
                                 <label class="fw-bold">Vehicle Number</label>
@@ -99,11 +99,11 @@ $conn->close();
                             </div>
                             <div class="mb-3">
                                 <label class="fw-bold">Vehicle Colour</label>
-                                <input type="text" name="vehicle_colour" class="form-control" value="<?= $row['car_colour'] ?>" required>
+                                <input type="text" name="vehicle_colour" class="form-control" value="<?= $row['car_colour'] ?>" required pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
                             </div>
                             <div class="mb-3">
                                 <label class="fw-bold">Phone Number</label>
-                                <input type="text" name="phone_number" class="form-control" value="<?= $row['phone_number'] ?>" required>
+                                <input type="text" name="phone_number" class="form-control" value="<?= $row['phone_number'] ?>" required pattern="[0-9]+" title="Only numbers are allowed">
                             </div>
                             <div class="mb-3">
                                 <label class="fw-bold">Email</label>

@@ -19,13 +19,14 @@ if (isset($_POST["confirm_logout"])) {
 
 // If the user cancels logout, redirect back
 if (isset($_POST["cancel_logout"])) {
-    if ($_SESSION["role"] === "admin") {
-        header("Location: admin_main.php"); // Redirect admin users
+    if (!empty($_SERVER['HTTP_REFERER'])) {
+        header("Location: " . $_SERVER['HTTP_REFERER']); // Redirect to the previous page
     } else {
-        header("Location: main.php"); // Redirect regular users
+        header("Location: main.php"); // Fallback if no referrer is available
     }
     exit();
 }
+
 
 ?>
 
@@ -87,7 +88,7 @@ if (isset($_POST["cancel_logout"])) {
     
     <form method="post">
         <button type="submit" name="confirm_logout" class="confirm-btn">Yes, Logout</button>
-        <button type="submit" name="cancel_logout" class="cancel-btn">Cancel</button>
+        <button type="button" class="cancel-btn" onclick="window.history.back();">Cancel</button>
     </form>
 </div>
 
