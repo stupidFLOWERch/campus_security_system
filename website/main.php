@@ -63,6 +63,10 @@
     <button class="navigate-btn" onclick="window.location.href='registered_vehicles.php'">Registered Vehicle Record</button>
 
     <script>
+        let video = document.getElementById("droidCam");
+        let canvas = document.createElement("canvas");
+        let context = canvas.getContext("2d");
+
         async function startDroidCam() {
             try {
                 // Get list of available video input devices
@@ -88,13 +92,36 @@
                 // Get webcam stream
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 document.getElementById("droidCam").srcObject = stream;
+                // Start sending frames after video starts
+                setInterval(sendFrameToFlask, 100);  // Send a frame every 100ms
             } catch (error) {
                 console.error("Error accessing webcam:", error);
                 alert("Webcam access is required to view the live feed.");
             }
         }
+        // Function to send frames to Flask
+        function sendFrameToFlask() {
+            if (!video.videoWidth || !video.videoHeight) return;
 
-        // Start the webcam when the page loads
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(blob => {
+                let formData = new FormData();
+                formData.append("frame", blob, "frame.jpg");
+
+                fetch("http://127.0.0.1:5000/process_frame", {  // Flask server URL
+                    method: "POST",
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => console.log("Flask Response:", data))
+                .catch(error => console.error("Error sending frame:", error));
+            }, "image/jpeg");
+        }
+
+        // Start the webcam on page load
         window.onload = startDroidCam;
     </script>
 </body>
