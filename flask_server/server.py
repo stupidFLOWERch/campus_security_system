@@ -2,10 +2,9 @@ from flask import Flask, request, jsonify
 import cv2
 import numpy as np
 import os
-import csv
 from ultralytics import YOLO
 from sort.sort import *
-from util import get_car, read_license_plate, write_csv
+from util import get_car, read_license_plate, write_mysql, delete_oldest_frame
 
 app = Flask(__name__)
 
@@ -21,18 +20,10 @@ results = {}
 mot_tracker = Sort()
 vehicles = [2, 3, 5, 7]  # Vehicle class IDs
 
-# CSV file path
-csv_file = os.path.join(current_dir, "test.csv")
-
 # Global frame counter
+FRAME_LIMIT = 100  # Set the max number of frames to keep
+frame_list = []  # Store frame numbers for tracking
 frame_nmr = -1
-
-# Ensure CSV file has headers
-def initialize_csv():
-    if not os.path.exists(csv_file):
-        with open(csv_file, mode='w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(['frame_nmr', 'car_id', 'car_bbox', 'license_plate_bbox', 'license_plate_bbox_score', 'license_number', 'license_number_score'])
 
 @app.route('/process_frame', methods=['POST'])
 def process_frame():
@@ -52,7 +43,7 @@ def process_frame():
     
     if frame_nmr not in results:
         results[frame_nmr] = {}
-        
+
     # Detect vehicles
     detections = coco_model(frame)[0]
     detections_ = []
@@ -101,11 +92,17 @@ def process_frame():
             }
 
             try:
-                print("Results before writing CSV:", results)  # Debugging line
-                write_csv(results, csv_file)
+                print("Results before writing to MySQL:", results)  # Debugging line
+                write_mysql(results)  # Save results to MySQL
             except Exception as e:
-                print("Error writing CSV:", e)
-
+                print("Error writing to MySQL:", e)
+    # Track frames and delete the oldest one if the limit is exceeded
+    frame_list.append(frame_nmr)
+    if len(frame_list) > FRAME_LIMIT:
+        oldest_frame = frame_list.pop(0)  # Remove the oldest frame from memory
+        if oldest_frame in results:
+            del results[oldest_frame]  # Remove from dictionary
+            delete_oldest_frame(oldest_frame)  # Call function to remove from MySQL
 
     return jsonify({"status": "success"})
 

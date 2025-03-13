@@ -1,8 +1,16 @@
-import string
+import mysql.connector
 from paddleocr import PaddleOCR
 import os
 import logging
 import re
+
+# Database Configuration
+DB_CONFIG = {
+    "host": "localhost",
+    "user": "root",
+    "password": "",
+    "database": "campus_security_system"
+}
 
 # Suppress PaddleOCR logging
 os.environ["GLOG_minloglevel"] = "3"  # Suppress C++ logs
@@ -41,43 +49,80 @@ def is_valid_malaysian_plate(text):
     else:
         return 0
 
-def write_csv(results, output_path):
+def delete_oldest_frame(frame_nmr):
+    try:
+        # Connect to MySQL
+        conn = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="",
+            database="campus_security_system"
+        )
+        cursor = conn.cursor()
+
+        # Delete the oldest frame from the database
+        sql = "DELETE FROM vehicle_data WHERE frame_number = %s"
+        cursor.execute(sql, (frame_nmr,))
+        conn.commit()
+        print(f"Deleted oldest frame {frame_nmr} from database")
+
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print("Error deleting frame from database:", e)
+def write_mysql(results):
     """
-    Write the results to a CSV file.
+    Write the results to a MySQL database.
 
     Args:
-        results (dict): Dictionary containing the results.
-        output_path (str): Path to the output CSV file.
+        results (dict): Dictionary containing detection results.
     """
-    with open(output_path, 'w') as f:
-        f.write('{},{},{},{},{},{},{}\n'.format('frame_nmr', 'car_id', 'car_bbox',
-                                                'license_plate_bbox', 'license_plate_bbox_score', 'license_number',
-                                                'license_number_score'))
+    try:
+        # Connect to the database
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+
+        insert_query = """
+        INSERT INTO detections (frame_nmr, car_id, car_bbox, license_plate_bbox, 
+                                license_plate_bbox_score, license_number, license_number_score)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
 
         for frame_nmr in results.keys():
             for car_id in results[frame_nmr].keys():
-                print(results[frame_nmr][car_id])
-                if 'car' in results[frame_nmr][car_id].keys() and \
-                    'license_plate' in results[frame_nmr][car_id].keys() and \
-                    'text' in results[frame_nmr][car_id]['license_plate'].keys():
-                    print(f"Frame: {frame_nmr}, Car ID: {car_id}, License Plate Text: {results[frame_nmr][car_id]['license_plate']['text']}")
-                    f.write('{},{},{},{},{},{},{}\n'.format(frame_nmr,
-                                                            car_id,
-                                                            '[{} {} {} {}]'.format(
-                                                                results[frame_nmr][car_id]['car']['bbox'][0],
-                                                                results[frame_nmr][car_id]['car']['bbox'][1],
-                                                                results[frame_nmr][car_id]['car']['bbox'][2],
-                                                                results[frame_nmr][car_id]['car']['bbox'][3]),
-                                                            '[{} {} {} {}]'.format(
-                                                                results[frame_nmr][car_id]['license_plate']['bbox'][0],
-                                                                results[frame_nmr][car_id]['license_plate']['bbox'][1],
-                                                                results[frame_nmr][car_id]['license_plate']['bbox'][2],
-                                                                results[frame_nmr][car_id]['license_plate']['bbox'][3]),
-                                                            results[frame_nmr][car_id]['license_plate']['bbox_score'],
-                                                            results[frame_nmr][car_id]['license_plate']['text'],
-                                                            results[frame_nmr][car_id]['license_plate']['text_score'])
-                            )
-        f.close()
+                if 'car' in results[frame_nmr][car_id] and 'license_plate' in results[frame_nmr][car_id]:
+                    car_bbox = '[{} {} {} {}]'.format(
+                        results[frame_nmr][car_id]['car']['bbox'][0],
+                        results[frame_nmr][car_id]['car']['bbox'][1],
+                        results[frame_nmr][car_id]['car']['bbox'][2],
+                        results[frame_nmr][car_id]['car']['bbox'][3]
+                    )
+                    license_plate_bbox = '[{} {} {} {}]'.format(
+                        results[frame_nmr][car_id]['license_plate']['bbox'][0],
+                        results[frame_nmr][car_id]['license_plate']['bbox'][1],
+                        results[frame_nmr][car_id]['license_plate']['bbox'][2],
+                        results[frame_nmr][car_id]['license_plate']['bbox'][3]
+                    )
+                    license_plate_bbox_score = results[frame_nmr][car_id]['license_plate']['bbox_score']
+                    license_number = results[frame_nmr][car_id]['license_plate']['text']
+                    license_number_score = results[frame_nmr][car_id]['license_plate']['text_score']
+
+                    cursor.execute(insert_query, (frame_nmr, car_id, car_bbox, license_plate_bbox,
+                                    license_plate_bbox_score, license_number, license_number_score))
+        
+        # Commit changes
+        conn.commit()
+        print("Data successfully written to MySQL.")
+
+    except mysql.connector.Error as err:
+        print("Error writing to MySQL:", err)
+
+    finally:
+        # Close connection
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 def license_complies_format(text):
