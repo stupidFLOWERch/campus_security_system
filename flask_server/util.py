@@ -49,27 +49,6 @@ def is_valid_malaysian_plate(text):
     else:
         return 0
 
-def delete_oldest_frame(frame_nmr):
-    try:
-        # Connect to MySQL
-        conn = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password="",
-            database="campus_security_system"
-        )
-        cursor = conn.cursor()
-
-        # Delete the oldest frame from the database
-        sql = "DELETE FROM vehicle_data WHERE frame_number = %s"
-        cursor.execute(sql, (frame_nmr,))
-        conn.commit()
-        print(f"Deleted oldest frame {frame_nmr} from database")
-
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        print("Error deleting frame from database:", e)
 def write_mysql(results):
     """
     Write the results to a MySQL database.
@@ -112,7 +91,6 @@ def write_mysql(results):
         
         # Commit changes
         conn.commit()
-        print("Data successfully written to MySQL.")
 
     except mysql.connector.Error as err:
         print("Error writing to MySQL:", err)
