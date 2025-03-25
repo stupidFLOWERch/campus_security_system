@@ -99,7 +99,6 @@ def write_mysql(results):
                                                   license_plate_bbox_score, license_number, license_number_score))
         
         conn.commit()
-        print("✅ Successfully wrote data to MySQL.")
 
     except mysql.connector.Error as err:
         print("❌ Error writing to MySQL:", err)
