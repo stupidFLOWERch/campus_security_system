@@ -51,62 +51,67 @@ def is_valid_malaysian_plate(text):
     else:
         return 0
 
-def write_mysql(results):
-    """
-    Write detection results to MySQL, saving both original and thresholded license plate images as BLOBs.
-    """
+def write_mysql(data):
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
+        # Connect to MySQL database
+        conn = mysql.connector.connect(
+            user="root", 
+            password="", 
+            database="campus_security_system", 
+            host="localhost"
+        )
         cursor = conn.cursor()
 
-        insert_query = """
-        INSERT INTO detections (frame_nmr, car_id, car_bbox, license_plate_bbox, 
-                                license_plate_image, license_plate_image_thresh,
-                                license_plate_bbox_score, license_number, license_number_score)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """
+        for detection in data['detections']:
+            # Check which columns exist in the table
+            cursor.execute("SHOW COLUMNS FROM detections")
+            columns = [column[0] for column in cursor.fetchall()]
 
-        for frame_nmr, frame_data in results.items():
-            for car_id, car_data in frame_data.items():
-                if 'car' in car_data and 'license_plate' in car_data:
-                    car_bbox = '[{} {} {} {}]'.format(*car_data['car']['bbox'])
-                    license_plate_bbox = '[{} {} {} {}]'.format(*car_data['license_plate']['bbox'])
-                    license_plate_bbox_score = car_data['license_plate']['bbox_score']
-                    license_number = car_data['license_plate']['text']
-                    license_number_score = car_data['license_plate']['text_score']
+            # Prepare base query
+            query = """
+                INSERT INTO detections (
+                    frame_nmr, car_id, license_number, license_number_score,
+                    license_plate_bbox_x1, license_plate_bbox_y1, 
+                    license_plate_bbox_x2, license_plate_bbox_y2,
+                    car_bbox_x1, car_bbox_y1, car_bbox_x2, car_bbox_y2
+            """
 
-                    # Retrieve the license plate images (original and thresholded)
-                    license_plate_image = car_data['license_plate']['image1']
-                    license_plate_image_thresh = car_data['license_plate']['image2']
+            values = [
+                data['frame_nmr'],
+                detection['car_id'],
+                detection['license_number'],
+                detection['license_number_score'],
+                detection['license_plate_bbox'][0],
+                detection['license_plate_bbox'][1],
+                detection['license_plate_bbox'][2],
+                detection['license_plate_bbox'][3],
+                detection['car_bbox'][0],
+                detection['car_bbox'][1],
+                detection['car_bbox'][2],
+                detection['car_bbox'][3]
+            ]
 
-                    # ✅ Ensure both images are NumPy arrays before encoding
-                    def convert_to_blob(image):
-                        if isinstance(image, bytes):
-                            return image  # Already in binary format
-                        elif isinstance(image, np.ndarray):
-                            _, buffer = cv2.imencode('.jpg', image)
-                            return buffer.tobytes()
-                        else:
-                            print(f"⚠️ Warning: Image is not valid!")
-                            return None  # Store NULL in MySQL
+            # Add blob columns if they exist
+            if 'license_plate_crop' in columns and 'license_plate_crop' in detection:
+                query += ", license_plate_crop"
+                values.append(detection['license_plate_crop'])
+            
+            if 'license_plate_crop_thresh' in columns and 'license_plate_crop_thresh' in detection:
+                query += ", license_plate_crop_thresh"
+                values.append(detection['license_plate_crop_thresh'])
 
-                    license_plate_image = convert_to_blob(license_plate_image)
-                    license_plate_image_thresh = convert_to_blob(license_plate_image_thresh)
+            query += ") VALUES (" + ",".join(["%s"] * len(values)) + ")"
 
-                    # Execute query
-                    cursor.execute(insert_query, (frame_nmr, car_id, car_bbox, license_plate_bbox,
-                                                  license_plate_image, license_plate_image_thresh,
-                                                  license_plate_bbox_score, license_number, license_number_score))
+            cursor.execute(query, values)
         
         conn.commit()
-
     except mysql.connector.Error as err:
-        print("❌ Error writing to MySQL:", err)
-
+        print(f"Database error: {err}")
+        conn.rollback()
     finally:
-        if cursor:
+        if 'cursor' in locals() and cursor:
             cursor.close()
-        if conn:
+        if 'conn' in locals() and conn:
             conn.close()
 
 

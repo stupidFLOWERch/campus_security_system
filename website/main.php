@@ -14,6 +14,7 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Webcam Feed</title>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
     <style>
         video {
             display: block;
@@ -88,6 +89,35 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             font-weight: bold;
             color: #333;
         }
+        /* Add these new styles */
+        .video-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .bounding-box {
+            position: absolute;
+            border: 2px solid;
+            box-sizing: border-box;
+        }
+        .car-box {
+            border-color: #00FF00; /* Green for car */
+        }
+        .plate-box {
+            border-color: #FF0000; /* Red for license plate */
+        }
+        .box-label {
+            position: absolute;
+            color: white;
+            font-size: 12px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 2px 5px;
+            border-radius: 3px;
+            transform: translateY(-100%);
+        }
     </style>
 </head>
 <body>
@@ -100,7 +130,10 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         <!-- Video Feed -->
         <div class="video-container">
             <h1>Live Camera View</h1>
-            <video id="droidCam" autoplay></video>
+            <div style="position: relative; display: inline-block;">
+                <video id="droidCam" autoplay></video>
+                <div id="videoOverlay" class="video-overlay"></div>
+            </div>
             <button class="navigate-btn" onclick="window.location.href='access_history.php'">Vehicle Access History</button>
             <button class="navigate-btn" onclick="window.location.href='registered_vehicles.php'">Registered Vehicle Record</button>
         </div>
@@ -110,11 +143,31 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             <h2>Detected License Plate</h2>
             <img id="plateImage" class="plate-image" src="get_plate_image.php?car_id=1&frame_nmr=150" alt="No plate detected">
             <p class="plate-number" id="plateText">Waiting for detection...</p>
-            <pre id="debugJson" style="background: #ddd; padding: 10px; border-radius: 5px;"></pre>
         </div>
     </div>
 
     <script>
+        // Initialize WebSocket connection
+        const socket = io('http://localhost:5000');
+
+        // Handle new detection events
+        socket.on('new_detection', (data) => {
+            console.log("Real-time detection:", data);
+            updateDetectionDisplay(data);
+        });
+
+        function updateDetectionDisplay(data) {
+            // Update license plate text
+            const plateText = document.getElementById("plateText");
+            if (plateText) {
+                plateText.innerHTML = "";
+                plateText.innerText = `License Number: ${data.license_number}`;
+            }
+            
+            // Draw bounding boxes
+            drawBoundingBoxes(data);
+        }
+
         let video = document.getElementById("droidCam");
         let canvas = document.createElement("canvas");
         let context = canvas.getContext("2d");
@@ -166,43 +219,55 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             }, "image/jpeg");
         }
 
-        async function fetchLicensePlateData() {
-            try {
-                const response = await fetch("http://127.0.0.1:5000/get_latest_plate");
-                const data = await response.json();
-
-                // Debugging: Display raw JSON response
-                console.log("Fetched data:", data);
-                document.getElementById("debugJson").textContent = JSON.stringify(data, null, 2);
-
-                let plateText = document.getElementById("plateText");
-
-                if (!plateText) {
-                    console.error("Element #plateText not found!");
-                    return;
-                }
-
-                if (data.car_id && data.frame_nmr && data.license_number) {
-                    let newText = `License Number: ${data.license_number}`;
-                    console.log("Updating plateText:", newText);
-
-                    // Force update by clearing and reassigning text
-                    plateText.innerHTML = "";  // Clear existing text
-                    plateText.innerText = newText;  // Set new text
-
-                    // Optional: Trigger reflow to force a refresh
-                    plateText.style.display = "none";
-                    plateText.offsetHeight;  // Trigger reflow
-                    plateText.style.display = "block";
-                }
-            } catch (error) {
-                console.error("Error fetching license plate data:", error);
-            }
+        function drawBoundingBoxes(data) {
+            const overlay = document.getElementById('videoOverlay');
+            overlay.innerHTML = ''; // Clear previous boxes
+            
+            if (!data.license_plate_bbox || !data.car_bbox) return;
+            
+            const video = document.getElementById('droidCam');
+            const videoWidth = video.videoWidth;
+            const videoHeight = video.videoHeight;
+            const displayWidth = video.offsetWidth;
+            const displayHeight = video.offsetHeight;
+            
+            // Calculate scale factors
+            const scaleX = displayWidth / videoWidth;
+            const scaleY = displayHeight / videoHeight;
+            
+            // Draw car bounding box
+            const [carX1, carY1, carX2, carY2] = data.car_bbox;
+            const carBox = document.createElement('div');
+            carBox.className = 'bounding-box car-box';
+            carBox.style.left = `${carX1 * scaleX}px`;
+            carBox.style.top = `${carY1 * scaleY}px`;
+            carBox.style.width = `${(carX2 - carX1) * scaleX}px`;
+            carBox.style.height = `${(carY2 - carY1) * scaleY}px`;
+            
+            const carLabel = document.createElement('div');
+            carLabel.className = 'box-label';
+            carLabel.textContent = 'Vehicle';
+            carBox.appendChild(carLabel);
+            overlay.appendChild(carBox);
+            
+            // Draw license plate bounding box
+            const [plateX1, plateY1, plateX2, plateY2] = data.license_plate_bbox;
+            const plateBox = document.createElement('div');
+            plateBox.className = 'bounding-box plate-box';
+            plateBox.style.left = `${plateX1 * scaleX}px`;
+            plateBox.style.top = `${plateY1 * scaleY}px`;
+            plateBox.style.width = `${(plateX2 - plateX1) * scaleX}px`;
+            plateBox.style.height = `${(plateY2 - plateY1) * scaleY}px`;
+            
+            const plateLabel = document.createElement('div');
+            plateLabel.className = 'box-label';
+            plateLabel.textContent = 'License Plate';
+            plateBox.appendChild(plateLabel);
+            overlay.appendChild(plateBox);
         }
 
         window.onload = function() {
             startDroidCam();
-            setInterval(fetchLicensePlateData, 2000);
         };
     </script>
 </body>
