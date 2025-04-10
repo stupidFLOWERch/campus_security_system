@@ -1,30 +1,45 @@
 <?php
-// Database connection
 $host = "localhost";
 $dbname = "campus_security_system";
 $username = "root";
 $password = "";
-$conn = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
-$conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-// Check if car_id and frame_nmr are set
-if (isset($_GET['car_id']) && isset($_GET['frame_nmr'])) {
-    $car_id = $_GET['car_id'];
-    $frame_nmr = $_GET['frame_nmr'];
+try {
+    $conn = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // Fetch the image from the database
-    $stmt = $conn->prepare("SELECT image_blob FROM detection WHERE car_id = :car_id AND frame_nmr = :frame_nmr ORDER BY id DESC LIMIT 1");
-    $stmt->execute(['car_id' => $car_id, 'frame_nmr' => $frame_nmr]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    // Prevent caching
+    header("Cache-Control: no-cache, no-store, must-revalidate");
+    header("Pragma: no-cache");
+    header("Expires: 0");
 
-    if ($row) {
-        header("Content-Type: image/jpeg");
-        echo $row['image_blob'];
-        exit;
+    if (isset($_GET['license_number'])) {
+        $license_number = $_GET['license_number'];
+
+        $stmt = $conn->prepare("
+            SELECT license_plate_crop 
+            FROM detections 
+            WHERE license_number = :license_number 
+            ORDER BY license_number_score DESC 
+            LIMIT 1
+        ");
+        $stmt->execute(['license_number' => $license_number]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($row && !empty($row['license_plate_crop'])) {
+            header("Content-Type: image/jpeg");
+            echo $row['license_plate_crop']; // directly echo the BLOB
+            exit;
+        }
     }
-}
 
-// If no image found, return a placeholder
-header("Content-Type: image/png");
-readfile("no_plate.png");
+    // If not found, return default image
+    header("Content-Type: image/png");
+    readfile("no_plate.png");
+    exit;
+
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo "Database error: " . $e->getMessage();
+}
 ?>

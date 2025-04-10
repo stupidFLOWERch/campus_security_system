@@ -35,7 +35,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 def process_frame():
     global frame_nmr, first_detection
     frame_nmr += 1
-    MIN_CONFIDENCE = 0.8  # Minimum confidence score to consider a detection valid
+    MIN_CONFIDENCE = 0.85  # Minimum confidence score to consider a detection valid
 
     if 'frame' not in request.files:
         return jsonify({"error": "No frame uploaded"}), 400
@@ -63,7 +63,7 @@ def process_frame():
 
     # Detect license plates
     license_plates = license_plate_detector(frame, verbose=False)[0]
-    last_detection = get_last_detection()
+    highest_detection = get_highest_detection()
 
     # Prepare data for MySQL
     mysql_data = {
@@ -116,11 +116,11 @@ def process_frame():
                     save_result = True
                     first_detection = False
                     print("-> Saving (first detection)")
-                elif (last_detection.get("car_id") != car_id or last_detection.get("license_number") != license_plate_text):
+                elif highest_detection.get("car_id") != car_id:
                     save_result = True
                     print("-> Saving (new vehicle/plate)")
-                elif last_detection.get("car_id") == car_id:
-                    highest_text_score = last_detection.get("text_score", 0)
+                elif highest_detection.get("car_id") == car_id:
+                    highest_text_score = highest_detection.get("text_score", 0)
                     if license_plate_text_score > highest_text_score:
                         save_result = True
                         print(f"-> Saving (better score than previous {highest_text_score:.2f})")
@@ -162,7 +162,7 @@ def process_frame():
         "frame_nmr": frame_nmr
     })
 
-def get_last_detection():
+def get_highest_detection():
     """Retrieve the last detected license plate from the database."""
     try:
         # Connect to MySQL database
@@ -204,7 +204,6 @@ def get_last_detection():
     except mysql.connector.Error as err:
         print(f"Database error: {err}")
         return {"car_id": None, "frame_nmr": None, "license_number": "Unknown", "text_score": 0}
-
 
 @app.route("/get_latest_plate")
 def get_latest_plate():

@@ -132,11 +132,17 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         function updateDetectionDisplay(data) {
             // Update license plate text
             const plateText = document.getElementById("plateText");
+            const plateImage = document.getElementById("plateImage");
             if (plateText) {
                 plateText.innerHTML = "";
                 plateText.innerText = `License Number: ${data.license_number}`;
             }
             
+            if (plateImage && data.license_number) {
+                // Use license number to fetch the best matching image
+                const imageUrl = `get_plate_image.php?license_number=${encodeURIComponent(data.license_number)}`;
+                plateImage.src = imageUrl;
+            }
         }
 
         let video = document.getElementById("droidCam");

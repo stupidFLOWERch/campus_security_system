@@ -36,21 +36,28 @@ else {
     // Default to oldest recorded date -> current date
     $startDate = $oldestDateRow['oldest_date'] ?? date('Y-m-d'); // Default to today if empty
     $endDate = date('Y-m-d');
+    $startDate = $startDate . ' 00:00:00';
+    $endDate = $endDate . ' 23:59:59';
 }
 
 // Build the query with filters
-$sql = "SELECT id, license_number, detection_time, license_plate_crop, license_plate_crop_thresh 
-        FROM detections
+$sql = "SELECT d1.*
+        FROM detections d1
+        INNER JOIN (
+            SELECT car_id, MAX(license_number_score) AS max_conf
+            FROM detections
+            GROUP BY car_id
+        ) d2 ON d1.car_id = d2.car_id AND d1.license_number_score = d2.max_conf
         WHERE 1=1";
 
 if (!empty($licensePlateFilter)) {
-    $sql .= " AND license_number LIKE '" . $conn->real_escape_string($licensePlateFilter) . "%'";
+    $sql .= " AND d1.license_number LIKE '" . $conn->real_escape_string($licensePlateFilter) . "%'";
 }
 if (!empty($startDate) && !empty($endDate)) {
-    $sql .= " AND detection_time BETWEEN '" . $conn->real_escape_string($startDate) . "' AND '" . $conn->real_escape_string($endDate) . "'";
+    $sql .= " AND d1.detection_time BETWEEN '" . $conn->real_escape_string($startDate) . "' AND '" . $conn->real_escape_string($endDate) . "'";
 }
 
-$sql .= " ORDER BY detection_time DESC";
+$sql .= " ORDER BY d1.detection_time DESC";
 
 $result = $conn->query($sql);
 ?>
@@ -129,7 +136,7 @@ $result = $conn->query($sql);
             max-height: 95vh;
             object-fit: cover; /* Fill the screen */
             border-radius: 8px;
-            transform: scale(4); /* Enlarge */
+            transform: scale(1.5); /* Enlarge */
             transition: transform 0.3s ease-in-out;
         }
         .topnav {
