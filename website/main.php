@@ -36,6 +36,8 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             display: flex;
             flex-direction: row;
             align-items: center;
+            justify-content: center;
+            height: 100%;
         }
         h1 {
             text-align: center;
@@ -89,35 +91,6 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             font-weight: bold;
             color: #333;
         }
-        /* Add these new styles */
-        .video-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-        .bounding-box {
-            position: absolute;
-            border: 2px solid;
-            box-sizing: border-box;
-        }
-        .car-box {
-            border-color: #00FF00; /* Green for car */
-        }
-        .plate-box {
-            border-color: #FF0000; /* Red for license plate */
-        }
-        .box-label {
-            position: absolute;
-            color: white;
-            font-size: 12px;
-            background-color: rgba(0, 0, 0, 0.7);
-            padding: 2px 5px;
-            border-radius: 3px;
-            transform: translateY(-100%);
-        }
     </style>
 </head>
 <body>
@@ -164,8 +137,6 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
                 plateText.innerText = `License Number: ${data.license_number}`;
             }
             
-            // Draw bounding boxes
-            drawBoundingBoxes(data);
         }
 
         let video = document.getElementById("droidCam");
@@ -217,53 +188,6 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
                 .then(data => console.log("Flask Response:", data))
                 .catch(error => console.error("Error sending frame:", error));
             }, "image/jpeg");
-        }
-
-        function drawBoundingBoxes(data) {
-            const overlay = document.getElementById('videoOverlay');
-            overlay.innerHTML = ''; // Clear previous boxes
-            
-            if (!data.license_plate_bbox || !data.car_bbox) return;
-            
-            const video = document.getElementById('droidCam');
-            const videoWidth = video.videoWidth;
-            const videoHeight = video.videoHeight;
-            const displayWidth = video.offsetWidth;
-            const displayHeight = video.offsetHeight;
-            
-            // Calculate scale factors
-            const scaleX = displayWidth / videoWidth;
-            const scaleY = displayHeight / videoHeight;
-            
-            // Draw car bounding box
-            const [carX1, carY1, carX2, carY2] = data.car_bbox;
-            const carBox = document.createElement('div');
-            carBox.className = 'bounding-box car-box';
-            carBox.style.left = `${carX1 * scaleX}px`;
-            carBox.style.top = `${carY1 * scaleY}px`;
-            carBox.style.width = `${(carX2 - carX1) * scaleX}px`;
-            carBox.style.height = `${(carY2 - carY1) * scaleY}px`;
-            
-            const carLabel = document.createElement('div');
-            carLabel.className = 'box-label';
-            carLabel.textContent = 'Vehicle';
-            carBox.appendChild(carLabel);
-            overlay.appendChild(carBox);
-            
-            // Draw license plate bounding box
-            const [plateX1, plateY1, plateX2, plateY2] = data.license_plate_bbox;
-            const plateBox = document.createElement('div');
-            plateBox.className = 'bounding-box plate-box';
-            plateBox.style.left = `${plateX1 * scaleX}px`;
-            plateBox.style.top = `${plateY1 * scaleY}px`;
-            plateBox.style.width = `${(plateX2 - plateX1) * scaleX}px`;
-            plateBox.style.height = `${(plateY2 - plateY1) * scaleY}px`;
-            
-            const plateLabel = document.createElement('div');
-            plateLabel.className = 'box-label';
-            plateLabel.textContent = 'License Plate';
-            plateBox.appendChild(plateLabel);
-            overlay.appendChild(plateBox);
         }
 
         window.onload = function() {

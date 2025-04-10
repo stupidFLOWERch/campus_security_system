@@ -1,10 +1,7 @@
-import mysql.connector
 from paddleocr import PaddleOCR
 import os
 import logging
 import re
-import cv2
-import numpy as np
 
 # Database Configuration
 DB_CONFIG = {
@@ -50,70 +47,6 @@ def is_valid_malaysian_plate(text):
         return 5
     else:
         return 0
-
-def write_mysql(data):
-    try:
-        # Connect to MySQL database
-        conn = mysql.connector.connect(
-            user="root", 
-            password="", 
-            database="campus_security_system", 
-            host="localhost"
-        )
-        cursor = conn.cursor()
-
-        for detection in data['detections']:
-            # Check which columns exist in the table
-            cursor.execute("SHOW COLUMNS FROM detections")
-            columns = [column[0] for column in cursor.fetchall()]
-
-            # Prepare base query
-            query = """
-                INSERT INTO detections (
-                    frame_nmr, car_id, license_number, license_number_score,
-                    license_plate_bbox_x1, license_plate_bbox_y1, 
-                    license_plate_bbox_x2, license_plate_bbox_y2,
-                    car_bbox_x1, car_bbox_y1, car_bbox_x2, car_bbox_y2
-            """
-
-            values = [
-                data['frame_nmr'],
-                detection['car_id'],
-                detection['license_number'],
-                detection['license_number_score'],
-                detection['license_plate_bbox'][0],
-                detection['license_plate_bbox'][1],
-                detection['license_plate_bbox'][2],
-                detection['license_plate_bbox'][3],
-                detection['car_bbox'][0],
-                detection['car_bbox'][1],
-                detection['car_bbox'][2],
-                detection['car_bbox'][3]
-            ]
-
-            # Add blob columns if they exist
-            if 'license_plate_crop' in columns and 'license_plate_crop' in detection:
-                query += ", license_plate_crop"
-                values.append(detection['license_plate_crop'])
-            
-            if 'license_plate_crop_thresh' in columns and 'license_plate_crop_thresh' in detection:
-                query += ", license_plate_crop_thresh"
-                values.append(detection['license_plate_crop_thresh'])
-
-            query += ") VALUES (" + ",".join(["%s"] * len(values)) + ")"
-
-            cursor.execute(query, values)
-        
-        conn.commit()
-    except mysql.connector.Error as err:
-        print(f"Database error: {err}")
-        conn.rollback()
-    finally:
-        if 'cursor' in locals() and cursor:
-            cursor.close()
-        if 'conn' in locals() and conn:
-            conn.close()
-
 
 def license_complies_format(text):
     """

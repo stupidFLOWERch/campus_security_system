@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify
-# from flask_caching import Cache
 from flask_socketio import SocketIO
 from flask_cors import CORS  # Import CORS
 import cv2
@@ -8,7 +7,8 @@ import os
 import mysql.connector
 from ultralytics import YOLO
 from sort.sort import *
-from util import get_car, read_license_plate, write_mysql
+from util import get_car, read_license_plate
+import time
 
 app = Flask(__name__)
 CORS(app)
@@ -31,15 +31,10 @@ vehicles = [2, 3, 5, 7]  # Vehicle class IDs
 
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-@socketio.on('connect')
-def handle_connect():
-    print('Client connected')
-
 @app.route('/process_frame', methods=['POST'])
 def process_frame():
     global frame_nmr, first_detection
     frame_nmr += 1
-    save_result = False
     MIN_CONFIDENCE = 0.8  # Minimum confidence score to consider a detection valid
 
     if 'frame' not in request.files:
@@ -91,6 +86,18 @@ def process_frame():
             
             license_plate_text, license_plate_text_score = read_license_plate(license_plate_crop_thresh)
             
+            if isinstance(license_plate_text, set):
+                license_plate_text = ''.join(license_plate_text) if license_plate_text else None
+            elif not isinstance(license_plate_text, str):
+                license_plate_text = str(license_plate_text) if license_plate_text else None
+            
+            if license_plate_text:
+                # Clean the license plate text
+                license_plate_text = license_plate_text.replace('{', '').replace('}', '').replace("'", "")
+                license_plate_text = license_plate_text.strip().upper()
+                # Remove any non-alphanumeric characters
+                license_plate_text = ''.join(c for c in license_plate_text if c.isalnum())
+            
             if license_plate_text is not None and license_plate_text_score >= MIN_CONFIDENCE:
                 print(f"[Frame {frame_nmr}] Detected: {license_plate_text} (Score: {license_plate_text_score:.4f})")
                 
@@ -119,12 +126,15 @@ def process_frame():
                         print(f"-> Saving (better score than previous {highest_text_score:.2f})")
                 
                 if save_result:
+                    # Ensure license_plate_text is valid
+                    if not license_plate_text or not isinstance(license_plate_text, str):
+                        print(f"Invalid license plate text: {license_plate_text} - Skipping insertion")
+                        continue
+                        
                     detection_data = {
                         'car_id': car_id,
                         'license_number': license_plate_text,
                         'license_number_score': license_plate_text_score,
-                        'license_plate_bbox': [x1, y1, x2, y2],
-                        'car_bbox': [xcar1, ycar1, xcar2, ycar2],
                         'license_plate_crop': license_plate_Crop_blob,
                         'license_plate_crop_thresh': license_plate_crop_thresh_blob
                     }
@@ -132,28 +142,17 @@ def process_frame():
                     # Emit real-time detection via WebSocket
                     socketio.emit('new_detection', {
                         'license_number': license_plate_text,
-                        'license_plate_bbox': [x1, y1, x2, y2],
-                        'car_bbox': [xcar1, ycar1, xcar2, ycar2],
                         'timestamp': frame_nmr,
                         'confidence': license_plate_text_score
                     })
                     
                     mysql_data['detections'].append(detection_data)
 
-                    results[frame_nmr][car_id] = {
-                        'car': {'bbox': [xcar1, ycar1, xcar2, ycar2]},
-                        'license_plate': {
-                            'bbox': [x1, y1, x2, y2],
-                            'text': license_plate_text,
-                            'bbox_score': score,
-                            'text_score': license_plate_text_score
-                        }
-                    }
             elif license_plate_text is not None:
                 print(f"[Frame {frame_nmr}] Low confidence: {license_plate_text} (Score: {license_plate_text_score:.2f}) - Not saving")
 
     if mysql_data['detections']:
-        print(f"Saving {len(mysql_data['detections'])} detections to database")
+
         write_mysql(mysql_data)
         del results[frame_nmr]
 
@@ -182,8 +181,8 @@ def get_last_detection():
             # Get the detection with the highest confidence score for this car
             cursor.execute(
                 """
-                SELECT frame_nmr, license_number, license_number_score 
-                FROM detections WHERE car_id=%s 
+                SELECT frame_nmr, license_number, license_number_score
+                FROM detections WHERE car_id=%s
                 ORDER BY license_number_score DESC LIMIT 1
                 """,
                 (car_id,)
@@ -222,11 +221,9 @@ def get_latest_plate():
 
         # Get the detection with the highest confidence score for this car
         cursor.execute(
-            """SELECT frame_nmr, license_number, license_plate_bbox_x1, license_plate_bbox_y1, 
-                  license_plate_bbox_x2, license_plate_bbox_y2, car_bbox_x1, car_bbox_y1, 
-                  car_bbox_x2, car_bbox_y2 
-               FROM detections WHERE car_id=%s 
-               ORDER BY license_number_score DESC LIMIT 1""",
+            """SELECT frame_nmr, license_number
+            FROM detections WHERE car_id=%s
+            ORDER BY license_number_score DESC LIMIT 1""",
             (car_id,)
         )
         best_detection = cursor.fetchone()
@@ -238,23 +235,52 @@ def get_latest_plate():
             return jsonify({
                 "car_id": car_id,
                 "frame_nmr": best_detection["frame_nmr"],
-                "license_number": best_detection["license_number"],
-                "license_plate_bbox": [
-                    best_detection["license_plate_bbox_x1"],
-                    best_detection["license_plate_bbox_y1"],
-                    best_detection["license_plate_bbox_x2"],
-                    best_detection["license_plate_bbox_y2"]
-                ],
-                "car_bbox": [
-                    best_detection["car_bbox_x1"],
-                    best_detection["car_bbox_y1"],
-                    best_detection["car_bbox_x2"],
-                    best_detection["car_bbox_y2"]
-                ]
+                "license_number": best_detection["license_number"]
             })
 
     return jsonify({"error": "No detections found"}), 404
 
+
+def write_mysql(data):
+    try:
+        conn = mysql.connector.connect(
+            user="root", password="",
+            database="campus_security_system",
+            host="localhost"
+        )
+        cursor = conn.cursor()
+
+        for detection in data['detections']:
+            # Additional validation
+            if not detection.get('license_number'):
+                print("Skipping detection with empty license number")
+                continue
+                
+            try:
+                cursor.execute("""
+                    INSERT INTO detections
+                    (car_id, frame_nmr, license_number, license_number_score, 
+                    license_plate_crop, license_plate_crop_thresh)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (
+                    detection['car_id'],
+                    data['frame_nmr'],
+                    detection['license_number'],
+                    float(detection['license_number_score']),  # Ensure float
+                    detection['license_plate_crop'],
+                    detection['license_plate_crop_thresh']
+                ))
+            except mysql.connector.Error as err:
+                print(f"Error inserting detection: {err}")
+                continue
+
+        conn.commit()
+        print(f"Successfully inserted {len(data['detections'])} records")
+    except Exception as e:
+        print(f"Database connection error: {e}")
+    finally:
+        if 'cursor' in locals(): cursor.close()
+        if 'conn' in locals(): conn.close()
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000, debug=True)

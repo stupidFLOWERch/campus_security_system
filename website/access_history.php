@@ -18,7 +18,7 @@ $licensePlateFilter = isset($_GET['license_plate']) ? $_GET['license_plate'] : '
 $dateRangeFilter = isset($_GET['date_range']) ? $_GET['date_range'] : '';
 
 // Get the oldest recorded timestamp from the database
-$oldestDateQuery = "SELECT MIN(timestamp) as oldest_date FROM vehicle_records";
+$oldestDateQuery = "SELECT MIN(detection_time) as oldest_date FROM detections";
 $oldestDateResult = $conn->query($oldestDateQuery);
 $oldestDateRow = $oldestDateResult->fetch_assoc();
 
@@ -27,6 +27,9 @@ if (!empty($dateRangeFilter)) {
     if (count($dates) === 2) {
         $startDate = $dates[0];
         $endDate = $dates[1];
+        $startDate = $startDate . ' 00:00:00';
+        $endDate = $endDate . ' 23:59:59';
+
     }
 }
 else {
@@ -36,13 +39,18 @@ else {
 }
 
 // Build the query with filters
-$sql = "SELECT id, license_plate, timestamp, video, image FROM vehicle_records WHERE 1=1";
+$sql = "SELECT id, license_number, detection_time, license_plate_crop, license_plate_crop_thresh 
+        FROM detections
+        WHERE 1=1";
+
 if (!empty($licensePlateFilter)) {
-    $sql .= " AND license_plate LIKE '" . $conn->real_escape_string($licensePlateFilter) . "%'";
+    $sql .= " AND license_number LIKE '" . $conn->real_escape_string($licensePlateFilter) . "%'";
 }
 if (!empty($startDate) && !empty($endDate)) {
-    $sql .= " AND timestamp BETWEEN '" . $conn->real_escape_string($startDate) . "' AND '" . $conn->real_escape_string($endDate) . "'";
+    $sql .= " AND detection_time BETWEEN '" . $conn->real_escape_string($startDate) . "' AND '" . $conn->real_escape_string($endDate) . "'";
 }
+
+$sql .= " ORDER BY detection_time DESC";
 
 $result = $conn->query($sql);
 ?>
@@ -175,7 +183,7 @@ $result = $conn->query($sql);
         .back-button {
             height: 40px;
             width: 100px;
-            padding: 10px;      
+            padding: 10px;
             margin-left: 16px;
             background-color: #2196F3;
             color: white;
@@ -215,18 +223,18 @@ $result = $conn->query($sql);
             <th>License Plate</th>
             <th>Timestamp</th>
             <th>Image</th>
-            <th>Video</th>
+            <th>Processed Image</th>
         </tr>
         <?php while($row = $result->fetch_assoc()): ?>
             <tr>
                 <td><?php echo $row["id"]; ?></td>
-                <td><?php echo $row["license_plate"]; ?></td>
-                <td><?php echo $row["timestamp"]; ?></td>
+                <td><?php echo $row["license_number"]; ?></td>
+                <td><?php echo $row["detection_time"]; ?></td>
 
-                <!-- Display Image -->
+                <!-- Display Images -->
                 <td>
-                    <?php if ($row["image"]): ?>
-                        <img src="data:image/jpeg;base64,<?php echo base64_encode($row['image']); ?>" 
+                    <?php if ($row["license_plate_crop"]): ?>
+                        <img src="data:image/jpeg;base64,<?php echo base64_encode($row['license_plate_crop']); ?>"
                             alt="Vehicle Image" class="clickable-image"
                             onclick="openFullscreen(this)">
                     <?php else: ?>
@@ -234,15 +242,13 @@ $result = $conn->query($sql);
                     <?php endif; ?>
                 </td>
 
-                <!-- Display Video -->
                 <td>
-                    <?php if ($row["video"]): ?>
-                        <video controls>
-                            <source src="data:video/mp4;base64,<?php echo base64_encode($row['video']); ?>" type="video/mp4">
-                            Your browser does not support the video tag.
-                        </video>
+                    <?php if ($row["license_plate_crop_thresh"]): ?>
+                        <img src="data:image/jpeg;base64,<?php echo base64_encode($row['license_plate_crop_thresh']); ?>"
+                            alt="Vehicle Image" class="clickable-image"
+                            onclick="openFullscreen(this)">
                     <?php else: ?>
-                        No Video Available
+                        No Image Available
                     <?php endif; ?>
                 </td>
             </tr>
