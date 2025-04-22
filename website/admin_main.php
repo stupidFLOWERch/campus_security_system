@@ -16,6 +16,11 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     <title>Webcam Feed</title>
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
     <style>
+        @keyframes highlight {
+            0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7); }
+            50% { box-shadow: 0 0 20px 10px rgba(33, 150, 243, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); }
+        }
         video {
             display: block;
             margin: 0 auto;
@@ -90,7 +95,12 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             font-size: 24px;
             font-weight: bold;
             color: #333;
-        }
+        }.owner-details p {
+        margin: 8px 0;
+        padding: 5px;
+        background-color: #f8f8f8;
+        border-radius: 5px;
+    }
     </style>
 </head>
 <body>
@@ -117,6 +127,13 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             <h2>Detected License Plate</h2>
             <img id="plateImage" class="plate-image" src="get_plate_image.php?car_id=1&frame_nmr=150" alt="No plate detected">
             <p class="plate-number" id="plateText">Waiting for detection...</p>
+
+        <!-- Add these new elements for owner information -->
+        <div class="owner-details" id="ownerDetails" style="margin-top: 20px; text-align: left;">
+            <p><strong>Owner:</strong> <span id="ownerName">-</span></p>
+            <p><strong>Student ID:</strong> <span id="studentId">-</span></p>
+            <p><strong>Vehicle:</strong> <span id="carModel">-</span></p>
+            <p><strong>Permit Type:</strong> <span id="permitType">-</span></p>
         </div>
     </div>
 
@@ -143,6 +160,19 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
                 // Use license number to fetch the best matching image
                 const imageUrl = `get_plate_image.php?license_number=${encodeURIComponent(data.license_number)}`;
                 plateImage.src = imageUrl;
+            }
+            // Update owner information if available
+            if (data.owner_info) {
+                document.getElementById("ownerName").textContent = data.owner_info.owner_name || '-';
+                document.getElementById("studentId").textContent = data.owner_info.student_id || '-';
+                document.getElementById("carModel").textContent = data.owner_info.car_brand_model || '-';
+                document.getElementById("permitType").textContent = data.owner_info.permit_type || '-';
+                
+                // Highlight the plate display when new detection comes in
+                const plateDisplay = document.getElementById("plateDisplay");
+                plateDisplay.style.animation = "none";
+                void plateDisplay.offsetWidth; // Trigger reflow
+                plateDisplay.style.animation = "highlight 1s";
             }
         }
 

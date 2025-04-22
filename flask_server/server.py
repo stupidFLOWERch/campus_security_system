@@ -143,7 +143,8 @@ def process_frame():
                     socketio.emit('new_detection', {
                         'license_number': license_plate_text,
                         'timestamp': frame_nmr,
-                        'confidence': license_plate_text_score
+                        'confidence': license_plate_text_score,
+                        'owner_info': get_owner_info(license_plate_text)  # Add this line
                     })
                     
                     mysql_data['detections'].append(detection_data)
@@ -162,6 +163,44 @@ def process_frame():
         "frame_nmr": frame_nmr
     })
 
+# Add this new function to server.py:
+def get_owner_info(license_plate):
+    """Retrieve owner information from the database based on license plate"""
+    try:
+        conn = mysql.connector.connect(
+            user="root", password="",
+            database="campus_security_system",
+            host="localhost"
+        )
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT owner_name, student_id, car_brand_model, permit_type 
+            FROM vehicle_registered_details
+            WHERE license_plate = %s
+            LIMIT 1
+        """, (license_plate,))
+        
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        return result if result else {
+            'owner_name': 'Unknown',
+            'student_id': 'N/A',
+            'car_brand_model': 'Unknown',
+            'permit_type': 'N/A'
+        }
+        
+    except mysql.connector.Error as err:
+        print(f"Database error: {err}")
+        return {
+            'owner_name': 'Error',
+            'student_id': 'Error',
+            'car_brand_model': 'Error',
+            'permit_type': 'Error'
+        }
+    
 def get_highest_detection():
     """Retrieve the last detected license plate from the database."""
     try:
