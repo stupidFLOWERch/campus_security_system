@@ -8,7 +8,6 @@ import mysql.connector
 from ultralytics import YOLO
 from sort.sort import *
 from util import get_car, read_license_plate
-import time
 
 app = Flask(__name__)
 CORS(app)
@@ -185,20 +184,33 @@ def get_owner_info(license_plate):
         cursor.close()
         conn.close()
         
-        return result if result else {
-            'owner_name': 'Unknown',
-            'student_id': 'N/A',
-            'car_brand_model': 'Unknown',
-            'permit_type': 'N/A'
-        }
+        if result:
+            # Return the result with registration status
+            return {
+                'owner_name': result['owner_name'],
+                'student_id': result['student_id'],
+                'car_brand_model': result['car_brand_model'],
+                'permit_type': result['permit_type'],
+                'is_registered': True  # Vehicle is registered
+            }
+        else:
+            # Vehicle not found in database
+            return {
+                'owner_name': 'UNKNOWN',
+                'student_id': 'N/A',
+                'car_brand_model': 'UNKNOWN',
+                'permit_type': 'N/A',
+                'is_registered': False  # Vehicle is not registered
+            }
         
     except mysql.connector.Error as err:
         print(f"Database error: {err}")
         return {
-            'owner_name': 'Error',
-            'student_id': 'Error',
-            'car_brand_model': 'Error',
-            'permit_type': 'Error'
+            'owner_name': 'DATABASE ERROR',
+            'student_id': 'DB ERROR',
+            'car_brand_model': 'DB ERROR',
+            'permit_type': 'DB ERROR',
+            'is_registered': False
         }
     
 def get_highest_detection():

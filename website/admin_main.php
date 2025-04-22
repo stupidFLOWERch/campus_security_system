@@ -16,27 +16,61 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     <title>Webcam Feed</title>
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
     <style>
+        .unregistered-warning {
+            color: white;
+            background-color: #ff4444;
+            font-weight: bold;
+            font-size: 18px;
+            text-align: center;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            animation: blink 1s linear infinite;
+            display: none;
+        }
+        /* Add these styles for registered vehicles */
+        .owner-details.registered-vehicle span {
+            color: #2e7d32; /* Dark green for registered vehicles */
+            font-weight: bold;
+        }
+        .owner-details.unregistered-vehicle span {
+            color: #ff0000 !important;
+            font-weight: bold;
+        }
+
+        .unregistered-warning.active {
+            display: block;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0.7; }
+        }
+
         @keyframes highlight {
             0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7); }
             50% { box-shadow: 0 0 20px 10px rgba(33, 150, 243, 0); }
             100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); }
         }
+
         video {
             display: block;
             margin: 0 auto;
-            width: 800px; /* Adjust width */
+            width: 800px;
             max-width: 100%;
-            height: 450px; /* Set a fixed height */
-            object-fit: cover; /* Removes black bars */
+            height: 450px;
+            object-fit: cover;
         }
+
         .video-container {
             position: relative;
         }
+
         body {
             font-family: Arial, sans-serif;
             padding: 20px;
             background-color: #f4f4f4;
         }
+
         .container {
             display: flex;
             flex-direction: row;
@@ -44,9 +78,11 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             justify-content: center;
             height: 100%;
         }
+
         h1 {
             text-align: center;
         }
+
         .navigate-btn {
             display: block;
             margin: 20px auto;
@@ -58,10 +94,12 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             cursor: pointer;
             font-size: 16px;
         }
+
         .navigate-btn:hover {
             background-color: #0b7dda;
-            transform: scale(1.1); /* Slightly enlarges the button */
+            transform: scale(1.1);
         }
+
         .logout-icon {
             position: absolute;
             top: 15px;
@@ -71,9 +109,11 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             cursor: pointer;
             transition: transform 0.2s ease-in-out;
         }
+
         .logout-icon:hover {
             transform: scale(1.2);
         }
+
         .plate-info {
             margin-left: 20px;
             padding: 20px;
@@ -83,24 +123,29 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             width: 300px;
             text-align: center;
         }
+
         .plate-info h2 {
             margin-bottom: 10px;
         }
+
         .plate-image {
             width: 250px;
             height: auto;
             border-radius: 8px;
         }
+
         .plate-number {
             font-size: 24px;
             font-weight: bold;
             color: #333;
-        }.owner-details p {
-        margin: 8px 0;
-        padding: 5px;
-        background-color: #f8f8f8;
-        border-radius: 5px;
-    }
+        }
+
+        .owner-details p {
+            margin: 8px 0;
+            padding: 5px;
+            background-color: #f8f8f8;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
@@ -128,12 +173,16 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             <img id="plateImage" class="plate-image" src="get_plate_image.php?car_id=1&frame_nmr=150" alt="No plate detected">
             <p class="plate-number" id="plateText">Waiting for detection...</p>
 
-        <!-- Add these new elements for owner information -->
-        <div class="owner-details" id="ownerDetails" style="margin-top: 20px; text-align: left;">
-            <p><strong>Owner:</strong> <span id="ownerName">-</span></p>
-            <p><strong>Student ID:</strong> <span id="studentId">-</span></p>
-            <p><strong>Vehicle:</strong> <span id="carModel">-</span></p>
-            <p><strong>Permit Type:</strong> <span id="permitType">-</span></p>
+            <div id="unregisteredWarning" class="unregistered-warning">
+                ⚠️ UNREGISTERED VEHICLE ⚠️
+            </div>
+
+            <div class="owner-details" id="ownerDetails" style="margin-top: 20px; text-align: left;">
+                <p><strong>Owner:</strong> <span id="ownerName">-</span></p>
+                <p><strong>Student ID:</strong> <span id="studentId">-</span></p>
+                <p><strong>Vehicle:</strong> <span id="carModel">-</span></p>
+                <p><strong>Permit Type:</strong> <span id="permitType">-</span></p>
+            </div>
         </div>
     </div>
 
@@ -151,31 +200,45 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             // Update license plate text
             const plateText = document.getElementById("plateText");
             const plateImage = document.getElementById("plateImage");
+            
             if (plateText) {
-                plateText.innerHTML = "";
-                plateText.innerText = `License Number: ${data.license_number}`;
+                plateText.textContent = `License Number: ${data.license_number}`;
             }
             
             if (plateImage && data.license_number) {
-                // Use license number to fetch the best matching image
-                const imageUrl = `get_plate_image.php?license_number=${encodeURIComponent(data.license_number)}`;
-                plateImage.src = imageUrl;
+                plateImage.src = `get_plate_image.php?license_number=${encodeURIComponent(data.license_number)}`;
             }
+
             // Update owner information if available
             if (data.owner_info) {
-                document.getElementById("ownerName").textContent = data.owner_info.owner_name || '-';
-                document.getElementById("studentId").textContent = data.owner_info.student_id || '-';
-                document.getElementById("carModel").textContent = data.owner_info.car_brand_model || '-';
-                document.getElementById("permitType").textContent = data.owner_info.permit_type || '-';
+                const ownerInfo = data.owner_info;
+                const warningDiv = document.getElementById("unregisteredWarning");
+                const ownerDetails = document.querySelector(".owner-details");
                 
-                // Highlight the plate display when new detection comes in
+                // Update all fields
+                document.getElementById("ownerName").textContent = ownerInfo.owner_name;
+                document.getElementById("studentId").textContent = ownerInfo.student_id;
+                document.getElementById("carModel").textContent = ownerInfo.car_brand_model;
+                document.getElementById("permitType").textContent = ownerInfo.permit_type;
+                
+                // Check registration status
+                if (ownerInfo.is_registered === false) {
+                    ownerDetails.classList.add("unregistered-vehicle");
+                    ownerDetails.classList.remove("registered-vehicle");
+                    warningDiv.classList.add("active");
+                } else {
+                    ownerDetails.classList.remove("unregistered-vehicle");
+                    ownerDetails.classList.add("registered-vehicle");
+                    warningDiv.classList.remove("active");
+                }
+                
+                // Highlight animation
                 const plateDisplay = document.getElementById("plateDisplay");
                 plateDisplay.style.animation = "none";
-                void plateDisplay.offsetWidth; // Trigger reflow
+                void plateDisplay.offsetWidth;
                 plateDisplay.style.animation = "highlight 1s";
             }
         }
-
 
         let video = document.getElementById("droidCam");
         let canvas = document.createElement("canvas");
