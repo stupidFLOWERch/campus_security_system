@@ -13,175 +13,309 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Webcam Feed</title>
+    <title>Campus Security - Live Monitoring</title>
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        .unregistered-warning {
-            color: white;
-            background-color: #ff4444;
-            font-weight: bold;
-            font-size: 18px;
-            text-align: center;
-            margin: 10px 0;
-            padding: 10px;
-            border-radius: 5px;
-            animation: blink 1s linear infinite;
-            display: none;
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --dark-color: #2c3e50;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --error-color: #e74c3c;
         }
-        /* Add these styles for registered vehicles */
-        .owner-details.registered-vehicle span {
-            color: #2e7d32; /* Dark green for registered vehicles */
-            font-weight: bold;
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
         }
-        .owner-details.unregistered-vehicle span {
-            color: #ff0000 !important;
-            font-weight: bold;
-        }
-
-        .unregistered-warning.active {
-            display: block;
-        }
-
-        @keyframes blink {
-            50% { opacity: 0.7; }
-        }
-
-        @keyframes highlight {
-            0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7); }
-            50% { box-shadow: 0 0 20px 10px rgba(33, 150, 243, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); }
-        }
-
-        video {
-            display: block;
-            margin: 0 auto;
-            width: 800px;
-            max-width: 100%;
-            height: 450px;
-            object-fit: cover;
-        }
-
-        .video-container {
-            position: relative;
-        }
-
+        
         body {
-            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
             padding: 20px;
-            background-color: #f4f4f4;
         }
-
-        .container {
+        
+        .header {
             display: flex;
-            flex-direction: row;
+            justify-content: space-between;
             align-items: center;
-            justify-content: center;
-            height: 100%;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
         }
-
-        h1 {
-            text-align: center;
+        
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
-
-        .navigate-btn {
-            display: block;
-            margin: 20px auto;
-            padding: 10px 20px;
-            background-color: #2196F3;
+        
+        .logo {
+            height: 50px;
+        }
+        
+        .page-title {
+            color: var(--primary-color);
+            font-weight: 600;
+            font-size: 24px;
+        }
+        
+        .logout-btn {
+            background: var(--primary-color);
             color: white;
             border: none;
-            border-radius: 25px;
+            padding: 8px 15px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
             cursor: pointer;
-            font-size: 16px;
+            transition: all 0.3s ease;
         }
-
-        .navigate-btn:hover {
-            background-color: #0b7dda;
-            transform: scale(1.1);
+        
+        .logout-btn:hover {
+            background: var(--secondary-color);
+            transform: translateY(-2px);
         }
-
-        .logout-icon {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            width: 50px;
-            height: 50px;
-            cursor: pointer;
-            transition: transform 0.2s ease-in-out;
+        
+        .main-container {
+            display: flex;
+            gap: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
         }
-
-        .logout-icon:hover {
-            transform: scale(1.2);
-        }
-
-        .plate-info {
-            margin-left: 20px;
-            padding: 20px;
+        
+        .video-section {
+            flex: 2;
             background: white;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
-            border-radius: 10px;
-            width: 300px;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .info-section {
+            flex: 1;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .section-title {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--light-color);
+        }
+        
+        video {
+            width: 100%;
+            height: 400px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 2px solid var(--light-color);
+        }
+        
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .action-btn {
+            padding: 12px;
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .action-btn:hover {
+            background: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+        }
+        
+        .plate-display {
+            margin-top: 20px;
             text-align: center;
         }
-
-        .plate-info h2 {
-            margin-bottom: 10px;
-        }
-
+        
         .plate-image {
-            width: 250px;
-            height: auto;
+            width: 100%;
+            max-width: 300px;
             border-radius: 8px;
+            border: 2px solid var(--light-color);
+            margin-bottom: 15px;
         }
-
+        
         .plate-number {
-            font-size: 24px;
-            font-weight: bold;
-            color: #333;
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            padding: 10px;
+            background: var(--light-color);
+            border-radius: 6px;
         }
-
-        .owner-details p {
-            margin: 8px 0;
-            padding: 5px;
-            background-color: #f8f8f8;
-            border-radius: 5px;
+        
+        .alert-warning {
+            background-color: var(--error-color);
+            color: white;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            display: none;
+        }
+        
+        .alert-warning.active {
+            display: flex;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .owner-details {
+            margin-top: 20px;
+        }
+        
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--light-color);
+        }
+        
+        .detail-label {
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+        
+        .detail-value {
+            font-weight: 600;
+        }
+        
+        .registered-vehicle .detail-value {
+            color: var(--success-color);
+        }
+        
+        .unregistered-vehicle .detail-value {
+            color: var(--error-color);
+        }
+        
+        @keyframes highlight {
+            0% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(52, 152, 219, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0); }
+        }
+        
+        .highlight {
+            animation: highlight 1.5s;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-container {
+                flex-direction: column;
+            }
+            
+            video {
+                height: 300px;
+            }
         }
     </style>
 </head>
 <body>
-    <!-- Logout Icon -->
-    <a href="logout.php">
-        <img src="logout-icon.png" alt="Logout" class="logout-icon">
-    </a>
+    <div class="header">
+        <div class="logo-container">
+            <img src="uni-logo.png" alt="Campus Security" class="logo">
+            <h1 class="page-title">Vehicle Monitoring System</h1>
+        </div>
+        <button class="logout-btn" onclick="window.location.href='logout.php'">
+            <i class="bi bi-box-arrow-right"></i> Logout
+        </button>
+    </div>
 
-    <div class="container">
-        <!-- Video Feed -->
-        <div class="video-container">
-            <h1>Live Camera View</h1>
-            <div style="position: relative; display: inline-block;">
-                <video id="droidCam" autoplay></video>
-                <div id="videoOverlay" class="video-overlay"></div>
+    <div class="main-container">
+        <!-- Video Feed Section -->
+        <div class="video-section">
+            <h2 class="section-title"><i class="bi bi-camera-video-fill"></i> Live Camera View</h2>
+            <video id="droidCam" autoplay></video>
+            
+            <div class="action-buttons">
+                <button class="action-btn" onclick="window.location.href='access_history.php'">
+                    <i class="bi bi-clock-history"></i> Access History
+                </button>
+                <button class="action-btn" onclick="window.location.href='authorized_vehicles.php'">
+                    <i class="bi bi-car-front-fill"></i> Authorized Vehicle
+                </button>
+                <button class="action-btn" onclick="window.location.href='operation.php'">
+                    <i class="bi bi-gear-fill"></i> Operations
+                </button>
             </div>
-            <button class="navigate-btn" onclick="window.location.href='access_history.php'">Vehicle Access History</button>
-            <button class="navigate-btn" onclick="window.location.href='registered_vehicles.php'">Registered Vehicle Record</button>
-            <button class="navigate-btn" onclick="window.location.href='operation.php'">Operation Page</button>
         </div>
 
-        <!-- License Plate Display -->
-        <div class="plate-info" id="plateDisplay">
-            <h2>Detected License Plate</h2>
-            <img id="plateImage" class="plate-image" src="get_plate_image.php?car_id=1&frame_nmr=150" alt="No plate detected">
-            <p class="plate-number" id="plateText">Waiting for detection...</p>
-
-            <div id="unregisteredWarning" class="unregistered-warning">
-                ⚠️ UNREGISTERED VEHICLE ⚠️
+        <!-- Information Section -->
+        <div class="info-section">
+            <h2 class="section-title"><i class="bi bi-card-text"></i> Detection Details</h2>
+            
+            <div class="plate-display">
+                <img id="plateImage" class="plate-image" src="placeholder-plate.png" alt="No plate detected">
+                <div class="plate-number" id="plateText">Waiting for detection...</div>
+                
+                <div id="unregisteredWarning" class="alert-warning">
+                    <i class="bi bi-exclamation-triangle-fill"></i> UNREGISTERED VEHICLE
+                </div>
             </div>
-
-            <div class="owner-details" id="ownerDetails" style="margin-top: 20px; text-align: left;">
-                <p><strong>Owner:</strong> <span id="ownerName">-</span></p>
-                <p><strong>Student ID:</strong> <span id="studentId">-</span></p>
-                <p><strong>Vehicle:</strong> <span id="carModel">-</span></p>
-                <p><strong>Permit Type:</strong> <span id="permitType">-</span></p>
+            
+            <div class="owner-details" id="ownerDetails">
+                <h3 class="section-title"><i class="bi bi-person-badge-fill"></i> Owner Information</h3>
+                
+                <div class="detail-item">
+                    <span class="detail-label">Owner:</span>
+                    <span class="detail-value" id="ownerName">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Student ID:</span>
+                    <span class="detail-value" id="studentId">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Vehicle:</span>
+                    <span class="detail-value" id="carModel">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Permit Type:</span>
+                    <span class="detail-value" id="permitType">-</span>
+                </div>
             </div>
         </div>
     </div>
@@ -202,24 +336,25 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             const plateImage = document.getElementById("plateImage");
             
             if (plateText) {
-                plateText.textContent = `License Number: ${data.license_number}`;
+                plateText.textContent = data.license_number || "No plate detected";
             }
             
             if (plateImage && data.license_number) {
                 plateImage.src = `get_plate_image.php?license_number=${encodeURIComponent(data.license_number)}`;
+                plateImage.alt = `License plate: ${data.license_number}`;
             }
 
             // Update owner information if available
             if (data.owner_info) {
                 const ownerInfo = data.owner_info;
                 const warningDiv = document.getElementById("unregisteredWarning");
-                const ownerDetails = document.querySelector(".owner-details");
+                const ownerDetails = document.getElementById("ownerDetails");
                 
                 // Update all fields
-                document.getElementById("ownerName").textContent = ownerInfo.owner_name;
-                document.getElementById("studentId").textContent = ownerInfo.student_id;
-                document.getElementById("carModel").textContent = ownerInfo.car_brand_model;
-                document.getElementById("permitType").textContent = ownerInfo.permit_type;
+                document.getElementById("ownerName").textContent = ownerInfo.owner_name || "-";
+                document.getElementById("studentId").textContent = ownerInfo.student_id || "-";
+                document.getElementById("carModel").textContent = ownerInfo.car_brand_model || "-";
+                document.getElementById("permitType").textContent = ownerInfo.permit_type || "-";
                 
                 // Check registration status
                 if (ownerInfo.is_registered === false) {
@@ -233,10 +368,10 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
                 }
                 
                 // Highlight animation
-                const plateDisplay = document.getElementById("plateDisplay");
-                plateDisplay.style.animation = "none";
-                void plateDisplay.offsetWidth;
-                plateDisplay.style.animation = "highlight 1s";
+                const infoSection = document.querySelector(".info-section");
+                infoSection.classList.remove("highlight");
+                void infoSection.offsetWidth; // Trigger reflow
+                infoSection.classList.add("highlight");
             }
         }
 
