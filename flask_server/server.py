@@ -24,7 +24,7 @@ mot_tracker = Sort()
 
 # Load YOLO models with full paths
 coco_model = YOLO(os.path.join(current_dir, "yolov8n.pt"))
-license_plate_detector = YOLO(os.path.join(current_dir, "license_plate3.pt"))
+license_plate_detector = YOLO(os.path.join(current_dir, "license_plate.pt"))
 
 vehicles = [2, 3, 5, 7]  # Vehicle class IDs
 
