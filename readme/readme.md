@@ -34,34 +34,38 @@ combining **DroidCam video capture** and **AI-powered processing** for campus se
 ## 🚀 Installation Guide
 
 ### Prerequisites 
-![Python](https://img.shields.io/badge/Python-3.8+-blue)  [Download Python 3.8+](https://www.python.org/downloads/)  
+![Python](https://img.shields.io/badge/Python-3.8+-blue)  
+[Download Python 3.8+](https://www.python.org/downloads/)  
 **During installation, check "Add Python to PATH"*
 
-![XAMPP](https://img.shields.io/badge/XAMPP-8.0+-orange) 
+![XAMPP](https://img.shields.io/badge/XAMPP-8.0+-orange)  
 [Download XAMPP](https://www.apachefriends.org/)  
 **Includes Apache, MySQL, and PHP*
 
-![DroidCam](https://img.shields.io/badge/DroidCam-Required-FF6F00?style=flat&logo=android) 
+![DroidCam](https://img.shields.io/badge/DroidCam-Required-FF6F00?style=flat&logo=android)  
 [Download DroidCam for PC](https://droidcam.app/)[Download DroidCam for PC](https://droidcam.app/)  
 [Download DroidCam for Phone](https://play.google.com/store/apps/details?id=com.dev47apps.obsdroidcam&hl=en)  
 **Both PC and Phone need to download DroidCam*
 
-![Git](https://img.shields.io/badge/Git-required-green) 
+![Git](https://img.shields.io/badge/Git-required-green)  
 [Download git](https://git-scm.com/downloads)
 
 ### Step-by-Step Setup
 1. **Database setup**
+
 Open **XAMPP Control Panel**, start **Apache and MySQL**. Click on **MySQL's Admin**. Go to the import field and import the **campus_security_system.sql** file provided.
 
+![mysql_import](mysql_import.png)
 
-2. **Clone the repository or Download the zip file**
+2. **Clone the repository or Download the zip file** 
+
 If you want to clone the repository, ensure that **git** is downloaded. Then execute the following commands:
 
    ```bash
    cd C:\xampp\htdocs
    git clone https://github.com/stupidFLOWERch/campus_security_system.git
-```
-
+   ```
+ 
 If you download the zip file, unzip it to the location **C:\xampp\htdocs**
 
 3. **DroidCam setup**
@@ -72,7 +76,10 @@ Open DroidCam Client on PC and DroidCam on phone. Change the **WiFi IP and Droid
 
 *To enable it, go to **Device Manager** and find **DroidCam Video** under **Sound, video and game controllers** section.
 
+![device_manager](device_manager.png)
+
 4. **Start Flask Server**
+
 Execute the following command:
 ```bash
    cd C:\xampp\htdocs\campus_security_system\flask_server
@@ -80,6 +87,7 @@ Execute the following command:
 ```
 
 5. **Open Web Interface**
+
 Open your web browser and enter **http://localhost/campus_security_system/website/login.php** or click on the link. The preset **username** is **ab**c and **password** is **123**.
 
 *Noted that **C:\xampp\htdocs** is the default installation location for XAMPP. Change the path to **path\xampp\htdocs** if you installed it to other location, which path is the file location where XAMPP is installed.
