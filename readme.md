@@ -55,7 +55,7 @@ combining **DroidCam video capture** and **AI-powered processing** for campus se
 
 Open **XAMPP Control Panel**, start **Apache and MySQL**. Click on **MySQL's Admin**. Go to the import field and import the **campus_security_system.sql** file provided.
 
-![mysql_import](mysql_import.png)
+![mysql_import](readme/mysql_import.png)
 
 2. **Clone the repository or Download the zip file** 
 
@@ -76,7 +76,7 @@ Open DroidCam Client on PC and DroidCam on phone. Change the **WiFi IP and Droid
 
 *To enable it, go to **Device Manager** and find **DroidCam Video** under **Sound, video and game controllers** section.
 
-![device_manager](device_manager.png)
+![device_manager](readme/device_manager.png)
 
 4. **Start Flask Server**
 
