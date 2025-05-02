@@ -45,6 +45,8 @@ def is_valid_malaysian_plate(text):
         return 4
     elif re.fullmatch(r'^[A-Z]{3}[0-9]{2}$', text):  # ABC12
         return 5
+    elif re.fullmatch(r'^[A-Z]{3}[0-9]{3}$', text):  # ABC123
+        return 6
     else:
         return 0
 
@@ -87,7 +89,9 @@ def format_license(text):
         4: {0: dict_int_to_char, 1: dict_int_to_char, 2: dict_char_to_int,
             3: dict_char_to_int, 4: dict_char_to_int},
         5: {0: dict_int_to_char, 1: dict_int_to_char, 2: dict_int_to_char, 3: dict_char_to_int,
-            4: dict_char_to_int}
+            4: dict_char_to_int},
+        6: {0: dict_int_to_char, 1: dict_int_to_char, 2: dict_int_to_char, 3: dict_char_to_int,
+            4: dict_char_to_int, 5: dict_char_to_int}
     }
     mapping = mappings[format_type]
     for j in range(len(text)):
