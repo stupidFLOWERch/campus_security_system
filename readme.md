@@ -53,7 +53,11 @@ combining **DroidCam video capture** and **AI-powered processing** for campus se
 ### Step-by-Step Setup
 1. **Database setup**
 
-Open **XAMPP Control Panel**, start **Apache and MySQL**. Click on **MySQL's Admin**. Go to the import field and import the **campus_security_system.sql** file provided.
+Open **XAMPP Control Panel**, start **Apache and MySQL**. Click on **MySQL's Admin**. In phpMyAdmin, create a database named **campus_security_system** by Click on the new database in the left sidebar. 
+
+![new_database](readme/new_database.png)
+
+Go to the import field and import the **campus_security_system.sql** file provided.
 
 ![mysql_import](readme/mysql_import.png)
 
@@ -81,13 +85,31 @@ Open DroidCam Client on PC and DroidCam on phone. Change the **WiFi IP and Droid
 4. **Start Flask Server**
 
 Execute the following command:
+  ```bash
+  cd C:\xampp\htdocs\campus_security_system\flask_server
+  pip install flask
+  pip install flask_socketio
+  pip install flask_cors
+  pip install mysql-connector-python
+  pip install ultralytics
+  pip install scikit-image
+  pip install filterpy
+  pip install paddleocr
+  pip install paddlepaddle
+  python server.py
+  ```
+
+If your Python installation is missing **pip**, 
+go to: https://bootstrap.pypa.io/get-pip.py.
+
+Save the file to your folder.
+Run the following command:
 ```bash
-   cd C:\xampp\htdocs\campus_security_system\flask_server
-   python server.py
+python path to the location\get-pip.py
 ```
 
 5. **Open Web Interface**
 
-Open your web browser and enter **http://localhost/campus_security_system/website/login.php** or click on the link. The preset **username** is **ab**c and **password** is **123**.
+Open your web browser and enter **http://localhost/campus_security_system/website/login.php** or click on the link. The preset **username** is **abc** and **password** is **123**.
 
 *Noted that **C:\xampp\htdocs** is the default installation location for XAMPP. Change the path to **path\xampp\htdocs** if you installed it to other location, which path is the file location where XAMPP is installed.
